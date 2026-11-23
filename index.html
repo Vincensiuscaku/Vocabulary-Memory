@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Muscle Kosakata</title>
+  <!-- Load Tailwind CSS for responsive classroom layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Inter font for clean projection readability -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* Full-viewport classroom styling & 3D tactile card flips */
+    html, body {
+      height: 100dvh;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .scene {
+      perspective: 1200px;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.56s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .card-inner.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .card-front {
+      transform: rotateY(180deg);
+    }
+
+    /* Tactile physical playing-card back pattern & layered depth */
+    .playing-card-back {
+      background-color: #3730a3;
+      background-image:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.14) 0%, transparent 68%),
+        repeating-linear-gradient(
+          45deg,
+          rgba(255, 255, 255, 0.05) 0px,
+          rgba(255, 255, 255, 0.05) 6px,
+          transparent 6px,
+          transparent 12px
+        ),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(255, 255, 255, 0.05) 0px,
+          rgba(255, 255, 255, 0.05) 6px,
+          transparent 6px,
+          transparent 12px
+        ),
+        linear-gradient(155deg, #4f46e5 0%, #3730a3 55%, #1e1b4b 100%);
+      box-shadow:
+        0 8px 18px -4px rgba(15, 23, 42, 0.22),
+        0 2px 5px -1px rgba(15, 23, 42, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .playing-card-front {
+      box-shadow:
+        0 8px 18px -4px rgba(15, 23, 42, 0.14),
+        0 2px 5px -1px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    /* Consistent physical playing-card footprint for both closed and open states */
+    .playing-card-slot {
+      width: 100%;
+      height: 100%;
+      max-width: 240px;
+      max-height: 100%;
+      justify-self: center;
+      align-self: center;
+    }
+
+    /* Responsive whole-word typography so long terms never clip or split mid-word */
+    .card-vocab-text {
+      font-size: clamp(0.76rem, 1.35vw, 1.2rem);
+      line-height: 1.22;
+      word-break: normal;
+      overflow-wrap: normal;
+      hyphens: none;
+    }
+
+    .card-vocab-text--long {
+      font-size: clamp(0.68rem, 1.12vw, 1.02rem);
+      line-height: 1.2;
+    }
+
+    @media (max-width: 639px) {
+      .card-vocab-text {
+        font-size: clamp(0.68rem, 2.8vw, 0.92rem);
+      }
+      .card-vocab-text--long {
+        font-size: clamp(0.6rem, 2.4vw, 0.82rem);
+      }
+    }
+
+    @keyframes gentleShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px) rotate(-1deg); }
+      40% { transform: translateX(6px) rotate(1deg); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    .animate-shake {
+      animation: gentleShake 0.45s ease-in-out;
+    }
+
+    @keyframes popMatch {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.045); }
+      100% { transform: scale(1); }
+    }
+
+    .animate-match {
+      animation: popMatch 0.4s ease-out;
+    }
+
+    @keyframes fadeInOverlay {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .animate-modal {
+      animation: fadeInOverlay 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body class="h-[100dvh] w-screen bg-slate-200/80 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col select-none overflow-hidden">
+  <!-- Ultra-Minimalist Full-Screen Container -->
+  <div id="app" class="h-[100dvh] w-full flex flex-col justify-between p-2.5 sm:p-4 lg:p-5 max-w-[1440px] mx-auto gap-2.5 sm:gap-3">
+
+    <!-- Minimalist Top Bar: Eye Toggle, Audio Mute/Unmute, and Shuffle/Reset -->
+    <header class="w-full flex items-center justify-end gap-2 shrink-0">
+      <button
+        id="eyeToggleBtn"
+        type="button"
+        aria-label="Lihat atau tutup semua kartu"
+        title="Lihat Semua / Tutup Semua"
+        class="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 shadow-xs transition flex items-center justify-center cursor-pointer"
+      >
+        <span id="eyeIconContainer" class="flex items-center justify-center"></span>
+      </button>
+
+      <button
+        id="muteToggleBtn"
+        type="button"
+        aria-label="Suara aktif atau bisu"
+        title="Suara Aktif / Bisu"
+        class="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 shadow-xs transition flex items-center justify-center cursor-pointer"
+      >
+        <span id="muteIconContainer" class="flex items-center justify-center"></span>
+      </button>
+
+      <button
+        id="resetBtn"
+        type="button"
+        aria-label="Acak ulang kartu"
+        title="Acak Ulang"
+        class="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-300/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 shadow-xs transition flex items-center justify-center cursor-pointer"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- Main 4x4 Classroom Playing-Card Table Grid (16 Cards = 8 Pairs) -->
+    <main class="flex-1 w-full min-h-0 flex items-center justify-center overflow-hidden">
+      <div
+        id="cardGrid"
+        class="w-full h-full max-w-[1120px] grid grid-cols-4 grid-rows-4 gap-2 sm:gap-3 lg:gap-4 place-items-center"
+        role="grid"
+        aria-label="Papan kartu kosakata"
+      >
+        <!-- 16 playing cards generated dynamically -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Minimal Completion Overlay -->
+  <div
+    id="completionModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/65 backdrop-blur-sm p-4"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div class="animate-modal w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </div>
+      <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mb-5">
+        Selesai!
+      </h2>
+      <button
+        id="playAgainBtn"
+        type="button"
+        class="w-full py-3.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold text-base shadow-lg shadow-indigo-600/25 transition cursor-pointer"
+      >
+        Main Lagi
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Exact 8 English-Indonesian vocabulary pairs.
+     */
+    const VOCABULARY_PAIRS = [
+      { id: 'invoice', en: 'Invoice', idn: 'Tagihan' },
+      { id: 'purchase-order', en: 'Purchase order', idn: 'Pesanan pembelian' },
+      { id: 'receiving-report', en: 'Receiving report', idn: 'Laporan penerimaan barang' },
+      { id: 'quantity', en: 'Quantity', idn: 'Jumlah unit' },
+      { id: 'unit-price', en: 'Unit price', idn: 'Harga per unit' },
+      { id: 'discrepancy', en: 'Discrepancy', idn: 'Ketidaksesuaian' },
+      { id: 'duplicate', en: 'Duplicate', idn: 'Duplikat' },
+      { id: 'verify', en: 'Verify', idn: 'Memeriksa kebenaran' }
+    ];
+
+    /**
+     * Web Audio API sound effects (match chime, flip click, soft mismatch).
+     */
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+      }
+
+      ensureContext() {
+        if (this.isMuted) return null;
+        try {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+          return this.ctx;
+        } catch (err) {
+          return null;
+        }
+      }
+
+      playTone(freq, endFreq, duration, type = 'sine', volume = 0.1, delay = 0) {
+        if (this.isMuted) return;
+        const ctx = this.ensureContext();
+        if (!ctx) return;
+
+        try {
+          const now = ctx.currentTime + delay;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          if (endFreq !== null) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+          }
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(volume, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        } catch (err) {
+          // Ignore audio playback errors
+        }
+      }
+
+      flip() {
+        this.playTone(460, 600, 0.07, 'triangle', 0.05);
+      }
+
+      match() {
+        // Crisp, pleasant celebratory bell chime when two cards match
+        this.playTone(587.33, null, 0.16, 'sine', 0.12, 0);      // D5
+        this.playTone(739.99, null, 0.18, 'sine', 0.12, 0.09);   // F#5
+        this.playTone(880.00, null, 0.28, 'sine', 0.14, 0.18);   // A5
+        this.playTone(1174.66, null, 0.35, 'sine', 0.11, 0.27);  // D6
+      }
+
+      mismatch() {
+        this.playTone(220, 175, 0.16, 'triangle', 0.055, 0);
+      }
+    }
+
+    /**
+     * Web Speech API Text-to-Speech Pronunciation Helper
+     */
+    function speakWord(text, langCode) {
+      if (sound.isMuted) return;
+      if (!('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = langCode === 'EN' ? 'en-US' : 'id-ID';
+        utterance.rate = 0.94;
+        utterance.pitch = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length > 0) {
+          const targetPrefix = langCode === 'EN' ? 'en' : 'id';
+          const matchedVoice =
+            voices.find((v) => v.lang.toLowerCase() === utterance.lang.toLowerCase()) ||
+            voices.find((v) => v.lang.toLowerCase().startsWith(targetPrefix));
+          if (matchedVoice) {
+            utterance.voice = matchedVoice;
+          }
+        }
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        // Graceful fallback if speech synthesis is blocked or unavailable
+      }
+    }
+
+    // Preload voices when available
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+
+    /**
+     * Minimalist Application State
+     */
+    const state = {
+      cards: [],
+      isPeekingAll: false,
+      flippedIndices: [],
+      matchedPairIds: new Set(),
+      isLocked: false,
+      isCompleted: false
+    };
+
+    const sound = new SoundEffects();
+
+    const dom = {
+      eyeToggleBtn: document.getElementById('eyeToggleBtn'),
+      eyeIconContainer: document.getElementById('eyeIconContainer'),
+      muteToggleBtn: document.getElementById('muteToggleBtn'),
+      muteIconContainer: document.getElementById('muteIconContainer'),
+      resetBtn: document.getElementById('resetBtn'),
+      cardGrid: document.getElementById('cardGrid'),
+      completionModal: document.getElementById('completionModal'),
+      playAgainBtn: document.getElementById('playAgainBtn')
+    };
+
+    /**
+     * Fisher-Yates shuffle helper.
+     */
+    function shuffleArray(items) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    /**
+     * Escape HTML entities safely.
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /**
+     * Build a freshly shuffled 16-card deck.
+     */
+    function buildDeck() {
+      const deck = [];
+      VOCABULARY_PAIRS.forEach((pair) => {
+        deck.push({
+          uid: `${pair.id}-en`,
+          pairId: pair.id,
+          lang: 'EN',
+          text: pair.en,
+          isFlipped: false,
+          isMatched: false
+        });
+        deck.push({
+          uid: `${pair.id}-id`,
+          pairId: pair.id,
+          lang: 'ID',
+          text: pair.idn,
+          isFlipped: false,
+          isMatched: false
+        });
+      });
+      return shuffleArray(deck);
+    }
+
+    /**
+     * Update Eye button icon (Eye open = reveal all, Eye off = close all).
+     */
+    function updateEyeButtonUI() {
+      if (state.isPeekingAll) {
+        // Eye-off icon (click to close cards)
+        dom.eyeIconContainer.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+            <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+            <line x1="2" y1="2" x2="22" y2="22" />
+          </svg>
+        `;
+      } else {
+        // Eye icon (click to reveal all cards)
+        dom.eyeIconContainer.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        `;
+      }
+    }
+
+    /**
+     * Update Mute/Unmute button icon.
+     */
+    function updateMuteButtonUI() {
+      if (sound.isMuted) {
+        dom.muteIconContainer.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        `;
+      } else {
+        dom.muteIconContainer.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        `;
+      }
+    }
+
+    /**
+     * Toggle audio mute/unmute state.
+     */
+    function toggleMute() {
+      sound.isMuted = !sound.isMuted;
+      if (sound.isMuted && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      updateMuteButtonUI();
+    }
+
+    /**
+     * Render the 16 playing cards with identical physical playing-card dimensions on both sides:
+     * - Closed face: Plain numbers 1 through 16 WITHOUT '#' (including 5), corner indices, and inner card frame.
+     * - Open face: Identical card dimensions, border, inner frame, corner numbers 1..16, full uncut vocabulary text, and speaker icon.
+     */
+    function renderBoard() {
+      dom.cardGrid.innerHTML = '';
+
+      state.cards.forEach((card, index) => {
+        const cardNumber = index + 1;
+        const isLongPhrase = card.text.length >= 14;
+
+        const cardWrapper = document.createElement('div');
+        cardWrapper.dataset.index = String(index);
+        cardWrapper.setAttribute('role', 'button');
+        cardWrapper.setAttribute('tabindex', '0');
+        cardWrapper.className =
+          'scene playing-card-slot group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-2xl cursor-pointer transition-transform duration-200 hover:-translate-y-1';
+
+        cardWrapper.innerHTML = `
+          <div class="card-inner w-full h-full rounded-2xl" data-card-inner>
+            <!-- Closed Face: Physical Playing-Card Back with plain number 1..16 (no '#') -->
+            <div class="card-face playing-card-back w-full h-full rounded-2xl border-[3px] border-white/95 dark:border-slate-300/85 p-1.5 sm:p-2 flex items-center justify-center text-white">
+              <div class="relative w-full h-full rounded-xl border border-white/35 flex items-center justify-center">
+                <!-- Classic playing-card corner number indices -->
+                <span class="absolute top-1.5 left-2 text-[11px] sm:text-xs font-bold text-white/85 leading-none">${cardNumber}</span>
+                <span class="absolute bottom-1.5 right-2 text-[11px] sm:text-xs font-bold text-white/85 leading-none rotate-180">${cardNumber}</span>
+
+                <!-- Center Card Number Medallion -->
+                <div class="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-full bg-white/12 border border-white/30 backdrop-blur-[1px] flex items-center justify-center shadow-inner">
+                  <span class="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-xs">${cardNumber}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Open Face: Identical Playing-Card Frame & Size with full uncut vocabulary text -->
+            <div class="card-face card-front playing-card-front relative w-full h-full rounded-2xl bg-white dark:bg-slate-900 border-[3px] border-slate-300 dark:border-slate-700 p-1.5 sm:p-2 flex items-center justify-center text-center transition-colors" data-card-front>
+              <div class="relative w-full h-full rounded-xl border border-slate-200/90 dark:border-slate-800 px-2.5 sm:px-3.5 py-5 sm:py-6 flex items-center justify-center overflow-hidden" data-card-inner-frame>
+                <!-- Matching corner card number index -->
+                <span class="absolute top-1.5 left-2 text-[11px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 leading-none">${cardNumber}</span>
+
+                <span class="card-vocab-text ${isLongPhrase ? 'card-vocab-text--long' : ''} font-extrabold text-slate-900 dark:text-white text-center select-none">
+                  ${escapeHtml(card.text)}
+                </span>
+
+                <button
+                  type="button"
+                  data-speak-btn
+                  aria-label="Dengarkan pengucapan ${escapeHtml(card.text)}"
+                  title="Dengarkan pengucapan"
+                  class="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-100/95 dark:bg-slate-800/95 hover:bg-indigo-100 dark:hover:bg-indigo-900/70 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center justify-center transition active:scale-90 cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Replay pronunciation when speaker icon is clicked
+        const speakBtn = cardWrapper.querySelector('[data-speak-btn]');
+        speakBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          speakWord(card.text, card.lang);
+        });
+
+        cardWrapper.addEventListener('click', () => handleCardClick(index));
+        cardWrapper.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick(index);
+          }
+        });
+
+        dom.cardGrid.appendChild(cardWrapper);
+        syncCardVisual(index);
+      });
+    }
+
+    /**
+     * Synchronize visual state of a card (closed, open, peeking, or matched).
+     */
+    function syncCardVisual(index) {
+      const card = state.cards[index];
+      const wrapper = dom.cardGrid.querySelector(`[data-index="${index}"]`);
+      if (!wrapper || !card) return;
+
+      const inner = wrapper.querySelector('[data-card-inner]');
+      const front = wrapper.querySelector('[data-card-front]');
+      const innerFrame = wrapper.querySelector('[data-card-inner-frame]');
+
+      const shouldShowFront = state.isPeekingAll || card.isFlipped || card.isMatched;
+
+      if (shouldShowFront) {
+        inner.classList.add('is-flipped');
+      } else {
+        inner.classList.remove('is-flipped');
+      }
+
+      if (card.isMatched) {
+        front.classList.remove('border-slate-300', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-900');
+        front.classList.add(
+          'border-emerald-500',
+          'dark:border-emerald-400',
+          'bg-emerald-50',
+          'dark:bg-emerald-950/70'
+        );
+        if (innerFrame) {
+          innerFrame.classList.remove('border-slate-200/90', 'dark:border-slate-800');
+          innerFrame.classList.add('border-emerald-400/60', 'dark:border-emerald-500/40');
+        }
+      } else {
+        front.classList.remove(
+          'border-emerald-500',
+          'dark:border-emerald-400',
+          'bg-emerald-50',
+          'dark:bg-emerald-950/70'
+        );
+        front.classList.add('border-slate-300', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-900');
+        if (innerFrame) {
+          innerFrame.classList.remove('border-emerald-400/60', 'dark:border-emerald-500/40');
+          innerFrame.classList.add('border-slate-200/90', 'dark:border-slate-800');
+        }
+      }
+    }
+
+    /**
+     * Toggle Eye Button: Reveal all cards or close all unmatched cards.
+     */
+    function toggleEyePeek() {
+      sound.flip();
+      state.isPeekingAll = !state.isPeekingAll;
+
+      // Clear any mid-turn unpaired selections when toggling eye view
+      if (state.flippedIndices.length > 0) {
+        state.flippedIndices.forEach((idx) => {
+          if (!state.cards[idx].isMatched) {
+            state.cards[idx].isFlipped = false;
+          }
+        });
+        state.flippedIndices = [];
+        state.isLocked = false;
+      }
+
+      updateEyeButtonUI();
+      state.cards.forEach((_, idx) => syncCardVisual(idx));
+    }
+
+    /**
+     * Handle clicking on any card in the grid.
+     */
+    function handleCardClick(index) {
+      const card = state.cards[index];
+      if (!card) return;
+
+      // If all cards are revealed via the Eye toggle, tapping any card pronounces its word
+      if (state.isPeekingAll) {
+        speakWord(card.text, card.lang);
+        return;
+      }
+
+      // If card is already open or matched, clicking it pronounces the word again
+      if (card.isFlipped || card.isMatched) {
+        speakWord(card.text, card.lang);
+        return;
+      }
+
+      if (state.isLocked || state.isCompleted) return;
+
+      // Flip card open and pronounce the word
+      card.isFlipped = true;
+      state.flippedIndices.push(index);
+      syncCardVisual(index);
+      sound.flip();
+      speakWord(card.text, card.lang);
+
+      if (state.flippedIndices.length < 2) {
+        return;
+      }
+
+      // Two cards are now open: evaluate match
+      state.isLocked = true;
+      const [firstIdx, secondIdx] = state.flippedIndices;
+      const firstCard = state.cards[firstIdx];
+      const secondCard = state.cards[secondIdx];
+
+      const isMatch =
+        firstCard.pairId === secondCard.pairId && firstCard.lang !== secondCard.lang;
+
+      if (isMatch) {
+        firstCard.isMatched = true;
+        secondCard.isMatched = true;
+        state.matchedPairIds.add(firstCard.pairId);
+        state.flippedIndices = [];
+        state.isLocked = false;
+
+        syncCardVisual(firstIdx);
+        syncCardVisual(secondIdx);
+
+        // Play celebratory chime slightly after the second card's word starts speaking
+        setTimeout(() => {
+          sound.match();
+        }, 380);
+
+        [firstIdx, secondIdx].forEach((idx) => {
+          const el = dom.cardGrid.querySelector(`[data-index="${idx}"]`);
+          if (el) {
+            el.classList.remove('animate-match');
+            void el.offsetWidth;
+            el.classList.add('animate-match');
+          }
+        });
+
+        if (state.matchedPairIds.size === VOCABULARY_PAIRS.length) {
+          state.isCompleted = true;
+          setTimeout(() => {
+            dom.completionModal.classList.remove('hidden');
+            dom.completionModal.classList.add('flex');
+          }, 750);
+        }
+      } else {
+        // Mismatch: give time to read & hear the second word before flipping back closed
+        setTimeout(() => {
+          sound.mismatch();
+        }, 550);
+
+        [firstIdx, secondIdx].forEach((idx) => {
+          const el = dom.cardGrid.querySelector(`[data-index="${idx}"]`);
+          if (el) {
+            el.classList.remove('animate-shake');
+            void el.offsetWidth;
+            el.classList.add('animate-shake');
+          }
+        });
+
+        setTimeout(() => {
+          firstCard.isFlipped = false;
+          secondCard.isFlipped = false;
+          state.flippedIndices = [];
+          syncCardVisual(firstIdx);
+          syncCardVisual(secondIdx);
+          state.isLocked = false;
+        }, 1250);
+      }
+    }
+
+    /**
+     * Initialize or reset the game board.
+     */
+    function initGame() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      dom.completionModal.classList.add('hidden');
+      dom.completionModal.classList.remove('flex');
+
+      state.cards = buildDeck();
+      state.isPeekingAll = false;
+      state.flippedIndices = [];
+      state.matchedPairIds = new Set();
+      state.isLocked = false;
+      state.isCompleted = false;
+
+      updateEyeButtonUI();
+      updateMuteButtonUI();
+      renderBoard();
+    }
+
+    // Event Listeners
+    dom.eyeToggleBtn.addEventListener('click', toggleEyePeek);
+    dom.muteToggleBtn.addEventListener('click', toggleMute);
+    dom.resetBtn.addEventListener('click', initGame);
+    dom.playAgainBtn.addEventListener('click', initGame);
+
+    // Start game
+    initGame();
+  </script>
+</body>
+</html>
